@@ -1,2 +1,2 @@
-# Generating Music Lyrics Employing GPT-2 ♥️
+# Generating Music Lyrics with ComposerGPT ♥️
 
