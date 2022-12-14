@@ -7,13 +7,9 @@ import logging
 import argparse
 import numpy as np
 from transformers import GPT2Tokenizer
-
+import configs
 logger = logging.getLogger(__name__)
 
-
-### Prepare data
-
-# create a dataset class for the gpt2 using torch
 class LyricsDataset(Dataset):
     def __init__(self, tokenizer, file_path, block_size=512):
         assert os.path.isfile(file_path)
@@ -40,29 +36,38 @@ class LyricsDataset(Dataset):
         return len(self.examples)
     def __getitem__(self, item):
         return torch.tensor(self.examples[item], dtype=torch.long)  
-
-
-#main function for dataset script
-def main(
-    block_size=512,
-    file_path=None,
-    output_dir=None
-):
-    # load the tokenizer
-    tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-    # load the dataset
-    dataset = LyricsDataset(tokenizer, file_path, block_size=512)
-    # create the dataloader
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
-    # print the first batch
-    print(next(iter(dataloader)))
-#create args parser of the dataset script
+    
 def parse_args():
+    args = configs.get_namespace()
     parser = argparse.ArgumentParser()
-    parser.add_argument("--block_size", default=512, type=int, help="block size")
-    parser.add_argument("--file_path", default=None, type=str, help="file path")
-    parser.add_argument("--output_dir", default="/content/data", type=str, help="output directory")
+    parser.add_argument("--block_size", default=args.block_size, type=int, help="block size")
+    parser.add_argument("--file_path", default=args.file_path, type=str, help="file path")
+    parser.add_argument("--output_dir", default=args.output_dir, type=str, help="output directory")
+    parser.add_argument("--batch_size", default=args.batch_size, type=int, help="batch size")
+
     return parser.parse_args()
+
+args = configs.get_namespace()
+def main(
+    block_size=args.block_size,
+    file_path=args.file_path,
+    output_dir=args.output_dir
+):
+    tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+    dataset = LyricsDataset(tokenizer, file_path, block_size=512)
+    train_size = int(0.8 * len(dataset))
+    val_size = len(dataset) - train_size
+    train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size])
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=True)
+    dataloader = {
+        'train': train_loader,
+        'val': val_loader
+    }
+
+    return dataloader
+    
+# run the main function
 
 if __name__ == '__main__':
     args = parse_args()
@@ -71,5 +76,3 @@ if __name__ == '__main__':
         file_path=args.file_path,
         output_dir=args.output_dir
     )
-
-
